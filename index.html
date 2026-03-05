@@ -725,14 +725,21 @@ function renderTravel(travels) {
 
 // ── CONTACTS ──────────────────────────────────────────────
 function renderContacts(persons) {
+  // Deduplicate first so counts are correct
+  const dedupedPersons = deduplicatePersons(persons.map(p => ({data: p}))).map(p => p.data || p);
+
   const rels = {};
-  persons.forEach(p => (p.relationship_to_owner||[]).forEach(r => rels[r]=(rels[r]||0)+1));
+  dedupedPersons.forEach(p => (p.relationship_to_owner||[]).forEach(r => {
+    // Normalize: treat parent_of as ignored (use father_of/mother_of instead)
+    if (r === 'parent_of') return;
+    rels[r] = (rels[r]||0) + 1;
+  }));
 
   const labels = {
     other:'Ostatní', friend_of:'Priatelia', close_friend_of:'Blízki priatelia',
     best_friend_of:'Najlepší priatelia', cousin_of:'Bratranci/sest.',
     colleague_of:'Kolegovia', ex_partner_of:'Ex-partneri',
-    father_of:'Otec', mother_of:'Matka', brother_of:'Súrodenec',
+    father_of:'Otec', mother_of:'Mama', brother_of:'Súrodenec',
     grandfather_of:'Starý otec', grandmother_of:'Stará mama', coach_of:'Tréneri'
   };
 
@@ -741,7 +748,7 @@ function renderContacts(persons) {
   // "Celkom osôb" scrolls to list; each rel cell filters the list
   document.getElementById('contacts-stats').innerHTML =
     `<div class="cs-cell click-item" onclick="filterByRel(null)" title="Zobraziť všetkých" style="cursor:pointer">
-       <div class="cs-num">${persons.length}</div><div class="cs-label">Celkom osôb</div>
+       <div class="cs-num">${dedupedPersons.length}</div><div class="cs-label">Celkom osôb</div>
      </div>` +
     top.map(([k,v]) => `
       <div class="cs-cell click-item" onclick="filterByRel('${k}')" title="Zobraziť: ${labels[k]||k}" style="cursor:pointer">
@@ -757,7 +764,7 @@ function renderContacts(persons) {
     </div>`).join('');
   setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
 
-  // Full contact list
+  // Full contact list (renderContactList handles its own dedup)
   renderContactList(persons.map(p => ({data: p})));
 }
 
