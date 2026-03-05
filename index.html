@@ -715,13 +715,20 @@ function renderContacts(persons) {
   };
 
   const top = Object.entries(rels).sort((a,b)=>b[1]-a[1]).slice(0,12);
+
+  // "Celkom osôb" scrolls to list; each rel cell filters the list
   document.getElementById('contacts-stats').innerHTML =
-    `<div class="cs-cell"><div class="cs-num">${persons.length}</div><div class="cs-label">Celkom osôb</div></div>` +
-    top.map(([k,v]) => `<div class="cs-cell"><div class="cs-num">${v}</div><div class="cs-label">${labels[k]||k}</div></div>`).join('');
+    `<div class="cs-cell click-item" onclick="filterByRel(null)" title="Zobraziť všetkých" style="cursor:pointer">
+       <div class="cs-num">${persons.length}</div><div class="cs-label">Celkom osôb</div>
+     </div>` +
+    top.map(([k,v]) => `
+      <div class="cs-cell click-item" onclick="filterByRel('${k}')" title="Zobraziť: ${labels[k]||k}" style="cursor:pointer">
+        <div class="cs-num">${v}</div><div class="cs-label">${labels[k]||k}</div>
+      </div>`).join('');
 
   const maxV = top[0]?.[1] || 1;
   document.getElementById('rel-bars').innerHTML = top.map(([k,v]) => `
-    <div class="rel-bar-row">
+    <div class="rel-bar-row" onclick="filterByRel('${k}')" style="cursor:pointer" title="Zobraziť: ${labels[k]||k}">
       <div class="rel-bar-label">${labels[k]||k}</div>
       <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${(v/maxV*100).toFixed(1)}%"></div></div>
       <div class="rel-bar-num">${v}</div>
@@ -730,6 +737,34 @@ function renderContacts(persons) {
 
   // Full contact list
   renderContactList(persons.map(p => ({data: p})));
+}
+
+function filterByRel(relKey) {
+  // Clear search, set filter, scroll to list
+  const search = document.getElementById('contact-search');
+  if (search) search.value = '';
+  window._relFilter = relKey;
+  const label = relKey ? (REL_LABELS[relKey] || relKey) : null;
+  const heading = document.getElementById('contact-count-label');
+
+  if (relKey === null) {
+    renderContactListFiltered('');
+    if (heading) heading.textContent = `(${_allContacts.length})`;
+  } else {
+    const filtered = _allContacts.filter(c => c.rels.includes(relKey));
+    if (heading) heading.textContent = `— ${label} (${filtered.length})`;
+    document.getElementById('contact-list-body').innerHTML = filtered.map(c => `
+      <div class="contact-item" onclick="openDetail('${c.uid}','person',JSON.parse(this.dataset.d))" data-d="${JSON.stringify(c.data).replace(/"/g,'&quot;')}">
+        <div>
+          <div class="ci-name">${c.name}</div>
+          <div class="ci-rel">${c.rels.map(r=>REL_LABELS[r]||r).join(', ')||'—'}</div>
+        </div>
+        <span style="color:var(--ink4);font-size:0.8rem">›</span>
+      </div>`).join('');
+  }
+
+  // Scroll to contact list
+  document.getElementById('contact-list-body').closest('.contact-list')?.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 // ── GOALS ─────────────────────────────────────────────────
