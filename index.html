@@ -174,6 +174,40 @@ main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
 .habit-freq{font-size:0.72rem;color:var(--ink4)}
 .habit-note{font-size:0.7rem;color:var(--ink3);margin-top:4px;font-style:italic}
 
+/* MODAL */
+#detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:8000;display:none;align-items:center;justify-content:center}
+#detail-overlay.open{display:flex}
+#detail-panel{background:#fff;width:560px;max-width:95vw;max-height:88vh;overflow-y:auto;border:1px solid var(--border);position:relative}
+#dp-header{display:flex;align-items:center;justify-content:space-between;padding:1.2rem 1.6rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:1}
+#dp-title{font-size:0.96rem;font-weight:600;letter-spacing:-0.01em}
+#dp-close{background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--ink4);padding:4px;line-height:1}
+#dp-close:hover{color:var(--ink)}
+#dp-body{padding:1.4rem 1.6rem}
+.df{margin-bottom:1.1rem}
+.df label{display:block;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink4);font-weight:500;margin-bottom:4px}
+.df input,.df select,.df textarea{width:100%;padding:7px 10px;border:1px solid var(--border);font-family:var(--sans);font-size:0.82rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color 0.15s}
+.df input:focus,.df select:focus,.df textarea:focus{border-color:var(--border2)}
+.df textarea{resize:vertical;min-height:60px}
+#dp-actions{display:flex;align-items:center;gap:8px;padding:1rem 1.6rem;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff}
+.btn-save{background:var(--ink);color:#fff;border:none;padding:8px 18px;font-family:var(--sans);font-size:0.76rem;font-weight:500;cursor:pointer;letter-spacing:0.04em}
+.btn-save:hover{background:#333}
+.btn-save:disabled{background:var(--ink4);cursor:default}
+.btn-cancel{background:none;border:1px solid var(--border);padding:8px 18px;font-family:var(--sans);font-size:0.76rem;cursor:pointer;color:var(--ink3)}
+.btn-cancel:hover{color:var(--ink);border-color:var(--border2)}
+#dp-status{font-size:0.74rem;color:var(--ink3);margin-left:4px}
+/* CLICKABLE rows */
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--surface)}
+.click-item{cursor:pointer}
+.click-item:hover{background:var(--surface)!important}
+/* CONTACT LIST */
+.contact-list{border:1px solid var(--border);margin-bottom:2rem;max-height:600px;overflow-y:auto}
+.contact-search{width:100%;padding:10px 1.4rem;border:none;border-bottom:1px solid var(--border);font-family:var(--sans);font-size:0.84rem;outline:none;background:var(--surface)}
+.contact-item{display:flex;align-items:center;justify-content:space-between;padding:9px 1.4rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s}
+.contact-item:last-child{border-bottom:none}
+.contact-item:hover{background:var(--surface)}
+.ci-name{font-size:0.82rem;font-weight:500;color:var(--ink)}
+.ci-rel{font-size:0.7rem;color:var(--ink4);margin-top:1px}
 .fade-in{animation:fi 0.4s ease both}
 @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -196,6 +230,22 @@ main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
 <div id="loading-bar"></div>
 <div id="loading-overlay">
   <div class="loading-text">Načítavam dáta z <span>prod.jarvis.sk</span>...</div>
+</div>
+
+<!-- DETAIL / EDIT MODAL -->
+<div id="detail-overlay" onclick="if(event.target===this)closeDetail()">
+  <div id="detail-panel">
+    <div id="dp-header">
+      <div id="dp-title">Detail</div>
+      <button id="dp-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div id="dp-body"></div>
+    <div id="dp-actions">
+      <button class="btn-save" id="dp-save" onclick="saveDetail()">Uložiť zmeny</button>
+      <button class="btn-cancel" onclick="closeDetail()">Zavrieť</button>
+      <span id="dp-status"></span>
+    </div>
+  </div>
 </div>
 
 <header>
@@ -296,7 +346,7 @@ main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
   </div>
 
   <div class="sec-title">Všetky aktivity</div>
-  <div style="border:1px solid var(--border);margin-bottom:2rem;overflow-x:auto" class="fade-in" style="animation-delay:0.1s">
+  <div style="border:1px solid var(--border);margin-bottom:2rem;overflow-x:auto" class="fade-in">
     <table class="sport-table">
       <thead><tr><th>Aktivita</th><th>Typ</th><th>Dátum</th><th>Vzdialenosť</th><th>Čas</th><th>Kalórie</th><th>Tep</th></tr></thead>
       <tbody id="sport-tbody"></tbody>
@@ -338,8 +388,13 @@ main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
 <div class="tab-panel" id="tab-contacts">
   <div class="contacts-stats fade-in" id="contacts-stats"></div>
   <div class="sec-title">Vzťahová mapa</div>
-  <div style="background:var(--bg);border:1px solid var(--border);padding:2rem;margin-bottom:2rem" class="fade-in" style="animation-delay:0.1s">
+  <div style="background:var(--bg);border:1px solid var(--border);padding:2rem;margin-bottom:2rem" class="fade-in">
     <div id="rel-bars"></div>
+  </div>
+  <div class="sec-title">Všetky kontakty <span id="contact-count-label" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.75rem;color:var(--ink3)"></span></div>
+  <div class="contact-list fade-in">
+    <input class="contact-search" id="contact-search" placeholder="Hľadať meno..." oninput="filterContacts()" />
+    <div id="contact-list-body"></div>
   </div>
   <div class="sec-title">Komunity & Projekty</div>
   <div class="cards-grid fade-in" style="animation-delay:0.15s">
@@ -526,7 +581,8 @@ function renderSport(sports, health) {
   document.getElementById('sport-tbody').innerHTML = sorted.map(s => {
     const t = (s.activity_type||'').toLowerCase();
     const cls = 'sport-badge' + (/triatlon|triathlon/.test(t)?' tri':/beh|run|maratón/.test(t)?' beh':/plávanie|swim/.test(t)?' swim':'');
-    return `<tr>
+    const dataStr = JSON.stringify(s).replace(/"/g,'&quot;');
+    return `<tr class="clickrow" onclick="openDetail('${s.uid||''}','sport_activity',JSON.parse(this.dataset.d))" data-d="${dataStr}" title="Kliknúť pre detail/úpravu">
       <td>${s.name||'—'}</td>
       <td><span class="${cls}">${s.activity_type||'—'}</span></td>
       <td>${s.date||'—'}</td>
@@ -633,7 +689,8 @@ function renderTravel(travels) {
     const name   = t.place_name || t.name || '—';
     const parts  = [t.visit_date, t.place_type].filter(Boolean);
     const rating = withRating && t.personal_rating ? `<span class="rating">★ ${t.personal_rating}</span>` : '';
-    return `<div class="travel-item">
+    const dataStr = JSON.stringify(t).replace(/"/g,'&quot;');
+    return `<div class="travel-item click-item" onclick="openDetail('${t.uid||name}','travel_location',JSON.parse(this.dataset.d))" data-d="${dataStr}" title="Kliknúť pre detail/úpravu" style="cursor:pointer">
       <span class="place">${name}</span>
       <span class="meta">${parts.join(' · ')}</span>
       ${rating}
@@ -670,21 +727,26 @@ function renderContacts(persons) {
       <div class="rel-bar-num">${v}</div>
     </div>`).join('');
   setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
+
+  // Full contact list
+  renderContactList(persons.map(p => ({data: p})));
 }
 
 // ── GOALS ─────────────────────────────────────────────────
 function renderGoals(goals, habits) {
   const icons = { health:'💪', financial:'💰', professional:'💼', personal:'🌿' };
 
-  document.getElementById('goals-list').innerHTML = goals.map(g => `
-    <div class="goal-item">
+  document.getElementById('goals-list').innerHTML = goals.map(g => {
+    const dataStr = JSON.stringify(g).replace(/"/g,'&quot;');
+    return `<div class="goal-item click-item" onclick="openDetail('${g.uid||g.name}','goal',JSON.parse(this.dataset.d))" data-d="${dataStr}" title="Kliknúť pre detail/úpravu" style="cursor:pointer">
       <div class="goal-icon">${icons[g.goal_type]||'🎯'}</div>
       <div style="flex:1">
         <div class="goal-name">${g.name||'—'}</div>
         <div class="goal-type">${g.goal_type||''} ${g.start_date?'· od '+g.start_date:''}</div>
       </div>
       <span class="goal-status ${g.status==='active'?'active':''}">${g.status||'—'}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const hdata = habits.length ? habits : [
     {name:'💧 Pitný režim', frequency:'denne', notes:'občas robí problém'},
@@ -695,12 +757,14 @@ function renderGoals(goals, habits) {
     {name:'📵 Ráno bez mobilu', frequency:'denne'},
     {name:'🌅 Ranná rutina', frequency:'denne'},
   ];
-  document.getElementById('habits-grid').innerHTML = hdata.map(h => `
-    <div class="habit-card">
+  document.getElementById('habits-grid').innerHTML = hdata.map(h => {
+    const dataStr = JSON.stringify(h).replace(/"/g,'&quot;');
+    return `<div class="habit-card click-item" onclick="openDetail('${h.uid||h.name}','habit',JSON.parse(this.dataset.d))" data-d="${dataStr}" title="Kliknúť pre detail/úpravu" style="cursor:pointer">
       <div class="habit-name">${h.name||'—'}</div>
       <div class="habit-freq">${h.frequency||'—'}</div>
       ${h.notes?`<div class="habit-note">${h.notes}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── FALLBACK ──────────────────────────────────────────────
@@ -796,6 +860,193 @@ function renderFallback() {
 }
 
 init();
+
+// ── MODAL / DETAIL / EDIT ────────────────────────────────────────────────────
+let _currentRecord = null; // {uid, schema, data}
+
+function openDetail(uid, schema, data) {
+  _currentRecord = {uid, schema, data};
+  document.getElementById('dp-title').textContent = data.name || data.place_name || data.activity_type || schema;
+  document.getElementById('dp-status').textContent = '';
+  document.getElementById('dp-save').disabled = false;
+  document.getElementById('dp-body').innerHTML = buildForm(schema, data);
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+  _currentRecord = null;
+}
+
+function buildForm(schema, data) {
+  const field = (key, label, type='text', opts=null) => {
+    const val = data[key] ?? '';
+    if (type === 'select' && opts) {
+      const options = opts.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('');
+      return `<div class="df"><label>${label}</label><select id="df_${key}"><option value="">—</option>${options}</select></div>`;
+    }
+    if (type === 'textarea') {
+      return `<div class="df"><label>${label}</label><textarea id="df_${key}">${val}</textarea></div>`;
+    }
+    if (type === 'multiselect') {
+      const selected = Array.isArray(val) ? val : [];
+      const checkboxes = opts.map(o => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;padding:3px 0;cursor:pointer">
+          <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''}> ${o}
+        </label>`).join('');
+      return `<div class="df"><label>${label}</label><div id="df_${key}" style="padding:6px 0">${checkboxes}</div></div>`;
+    }
+    return `<div class="df"><label>${label}</label><input id="df_${key}" type="${type}" value="${val}"></div>`;
+  };
+
+  const relTypes = ['other','friend_of','close_friend_of','best_friend_of','cousin_of','colleague_of','ex_partner_of','family','coach_of','father_of','mother_of','brother_of','sister_of','grandfather_of','grandmother_of'];
+
+  if (schema === 'person') return [
+    field('name','Meno'),
+    field('relationship_to_owner','Vzťah','multiselect', relTypes),
+    field('note','Poznámka','textarea'),
+    field('email','Email','email'),
+    field('phone','Telefón'),
+    field('city','Mesto'),
+  ].join('');
+
+  if (schema === 'sport_activity') return [
+    field('name','Názov aktivity'),
+    field('activity_type','Typ aktivity','select',['Triathlon','Beh','Plávanie','Silový tréning','Intervalové tréningy','Cyklistika','Iné']),
+    field('date','Dátum','date'),
+    field('distance_km','Vzdialenosť (km)'),
+    field('duration_min','Čas (min)'),
+    field('calories','Kalórie'),
+    field('avg_heart_rate','Priemerný tep'),
+    field('notes','Poznámky','textarea'),
+  ].join('');
+
+  if (schema === 'travel_location') return [
+    field('place_name','Názov miesta'),
+    field('visit_status','Stav','select',['visited','wishlist']),
+    field('place_type','Typ','select',['city','country','region','sight','island']),
+    field('visit_date','Dátum návštevy','date'),
+    field('personal_rating','Hodnotenie (1-10)'),
+    field('notes','Poznámky','textarea'),
+  ].join('');
+
+  if (schema === 'goal') return [
+    field('name','Názov cieľa'),
+    field('goal_type','Typ','select',['health','financial','professional','personal']),
+    field('status','Stav','select',['active','completed','paused']),
+    field('start_date','Začiatok','date'),
+    field('target_date','Cieľový dátum','date'),
+    field('description','Popis','textarea'),
+  ].join('');
+
+  if (schema === 'habit') return [
+    field('name','Názov návyku'),
+    field('frequency','Frekvencia','select',['daily','2-3 times per week','weekly','monthly']),
+    field('notes','Poznámky','textarea'),
+  ].join('');
+
+  // Generic fallback
+  return Object.entries(data).filter(([k]) => !['uid'].includes(k)).map(([k,v]) =>
+    `<div class="df"><label>${k}</label><input id="df_${k}" value="${String(v??'')}"></div>`
+  ).join('');
+}
+
+function collectForm(schema, originalData) {
+  const updated = {...originalData};
+  const relTypes = ['other','friend_of','close_friend_of','best_friend_of','cousin_of','colleague_of','ex_partner_of','family','coach_of','father_of','mother_of','brother_of','sister_of','grandfather_of','grandmother_of'];
+
+  if (schema === 'person') {
+    ['name','note','email','phone','city'].forEach(k => {
+      const el = document.getElementById('df_'+k);
+      if (el) updated[k] = el.value;
+    });
+    const cb = document.querySelectorAll('#df_relationship_to_owner input[type=checkbox]');
+    updated.relationship_to_owner = [...cb].filter(c=>c.checked).map(c=>c.value);
+    return updated;
+  }
+
+  document.querySelectorAll('#dp-body .df input, #dp-body .df select, #dp-body .df textarea').forEach(el => {
+    const key = el.id.replace('df_','');
+    if (el.type === 'checkbox') return;
+    if (key && key !== 'relationship_to_owner') updated[key] = el.value;
+  });
+  return updated;
+}
+
+async function saveDetail() {
+  if (!_currentRecord) return;
+  const {uid, schema, data} = _currentRecord;
+  const updated = collectForm(schema, data);
+  const btn = document.getElementById('dp-save');
+  const status = document.getElementById('dp-status');
+  btn.disabled = true;
+  status.textContent = 'Ukladám...';
+
+  try {
+    const res = await fetch(`${API}/instance/update`, {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json'},
+      body: JSON.stringify({uid, data: updated})
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    status.textContent = '✓ Uložené';
+    status.style.color = '#10b981';
+    // Update local cache
+    if (window._data) {
+      const arr = window._data[schema] || [];
+      const idx = arr.findIndex(x => (x.uid||x.data?.uid) === uid);
+      if (idx >= 0) arr[idx] = {...arr[idx], ...updated};
+    }
+    setTimeout(() => closeDetail(), 800);
+  } catch(e) {
+    status.textContent = '✗ Chyba: ' + e.message;
+    status.style.color = '#f43f5e';
+    btn.disabled = false;
+  }
+}
+
+// ── CONTACT LIST ─────────────────────────────────────────────────────────────
+let _allContacts = [];
+
+function renderContactList(persons) {
+  _allContacts = persons.map(p => {
+    const d = p.data || p;
+    return {
+      uid: d.uid,
+      name: d.name || [d.first_name, d.last_name].filter(Boolean).join(' ') || '?',
+      rels: Array.isArray(d.relationship_to_owner) ? d.relationship_to_owner : [],
+      data: d
+    };
+  }).sort((a,b) => a.name.localeCompare(b.name, 'sk'));
+
+  document.getElementById('contact-count-label').textContent = `(${_allContacts.length})`;
+  renderContactListFiltered('');
+}
+
+const REL_LABELS = {
+  other:'Ostatní', friend_of:'Priateľ/ka', close_friend_of:'Blízky priateľ',
+  best_friend_of:'Najlepší priateľ', cousin_of:'Bratranec/sesternica',
+  colleague_of:'Kolega', ex_partner_of:'Ex-partner', family:'Rodina',
+  coach_of:'Tréner', father_of:'Otec', mother_of:'Matka',
+  brother_of:'Súrodenec', sister_of:'Sestra',
+  grandfather_of:'Starý otec', grandmother_of:'Stará mama'
+};
+
+function renderContactListFiltered(q) {
+  const filtered = q ? _allContacts.filter(c => c.name.toLowerCase().includes(q.toLowerCase())) : _allContacts;
+  document.getElementById('contact-list-body').innerHTML = filtered.map(c => `
+    <div class="contact-item" onclick="openDetail('${c.uid}','person',${JSON.stringify(c.data).replace(/"/g,'&quot;')})">
+      <div>
+        <div class="ci-name">${c.name}</div>
+        <div class="ci-rel">${c.rels.map(r=>REL_LABELS[r]||r).join(', ')||'—'}</div>
+      </div>
+      <span style="color:var(--ink4);font-size:0.8rem">›</span>
+    </div>`).join('');
+}
+
+function filterContacts() {
+  renderContactListFiltered(document.getElementById('contact-search').value);
+}
 </script>
 </body>
 </html>
