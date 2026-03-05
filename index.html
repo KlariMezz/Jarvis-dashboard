@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klári · Môj svet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f9f9f9;
+  --surface2: #f3f3f3;
+  --ink: #111111;
+  --ink2: #444444;
+  --ink3: #888888;
+  --ink4: #bbbbbb;
+  --border: #e8e8e8;
+  --border2: #d0d0d0;
+  --sans: 'Inter', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* LOADING */
+#loading-bar{position:fixed;top:0;left:0;height:2px;width:0%;background:var(--ink);transition:width 0.4s ease;z-index:9999}
+#loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9998;transition:opacity 0.4s}
+#loading-overlay.hidden{opacity:0;pointer-events:none}
+.loading-text{font-size:0.78rem;color:var(--ink4);letter-spacing:0.1em;text-transform:uppercase;text-align:center}
+.loading-text span{color:var(--ink);font-weight:500}
+
+/* HEADER */
+header{padding:3rem 3rem 2.5rem;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--border)}
+.header-left h1{font-size:2.2rem;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--ink)}
+.header-left h1 span{color:var(--ink3)}
+.header-left p{font-size:0.72rem;color:var(--ink4);margin-top:0.6rem;letter-spacing:0.04em;font-weight:400}
+.header-stats{display:flex;gap:3rem;text-align:right}
+.hs{display:flex;flex-direction:column;gap:3px}
+.hs-num{font-size:1.8rem;font-weight:600;color:var(--ink);line-height:1;letter-spacing:-0.03em}
+.hs-label{font-size:0.65rem;color:var(--ink4);letter-spacing:0.06em;font-weight:400;text-transform:uppercase}
+
+/* NAV */
+nav{display:flex;border-bottom:1px solid var(--border);padding:0 3rem;overflow-x:auto}
+nav::-webkit-scrollbar{height:0}
+nav button{background:none;border:none;color:var(--ink4);font-family:var(--sans);font-size:0.78rem;font-weight:500;padding:1rem 0;margin-right:2rem;cursor:pointer;letter-spacing:0.02em;white-space:nowrap;border-bottom:1px solid transparent;transition:color 0.15s,border-color 0.15s}
+nav button:hover{color:var(--ink2)}
+nav button.active{color:var(--ink);border-bottom-color:var(--ink)}
+
+/* MAIN */
+main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* SECTION TITLE */
+.sec-title{font-size:0.68rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:1.2rem;margin-top:2.5rem;padding-bottom:0.8rem;border-bottom:1px solid var(--border)}
+
+/* OVERVIEW GRID */
+.overview-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2.5rem}
+.og-cell{background:var(--bg);padding:2rem 1.5rem;transition:background 0.15s}
+.og-cell:hover{background:var(--surface)}
+.og-num{font-size:2.6rem;font-weight:600;line-height:1;color:var(--ink);letter-spacing:-0.04em}
+.og-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-top:8px;font-weight:500}
+.og-cell.accent{background:var(--ink)}
+.og-cell.accent .og-num{color:var(--bg)}
+.og-cell.accent .og-label{color:var(--ink4)}
+.og-cell.accent:hover{background:#222}
+
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--border);margin-bottom:2.5rem;border:1px solid var(--border)}
+.card{background:var(--bg);padding:1.4rem;transition:background 0.15s}
+.card:hover{background:var(--surface)}
+.card-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink4);margin-bottom:0.6rem;font-weight:500}
+.card-title{font-size:1rem;font-weight:600;color:var(--ink);margin-bottom:0.4rem;line-height:1.3;letter-spacing:-0.01em}
+.card-sub{font-size:0.78rem;color:var(--ink3);line-height:1.6}
+.card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:0.9rem}
+.chip{font-size:0.62rem;padding:2px 8px;background:var(--surface2);color:var(--ink3);border:1px solid var(--border)}
+
+/* PROFILE */
+.profile-layout{display:grid;grid-template-columns:280px 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.profile-card{background:var(--ink);padding:2rem;position:relative;overflow:hidden}
+.profile-card::before{content:'KM';position:absolute;bottom:-24px;right:-8px;font-size:8rem;font-weight:700;color:rgba(255,255,255,0.04);line-height:1}
+.profile-name{font-size:1.6rem;font-weight:600;line-height:1.1;margin-bottom:0.7rem;color:#fff;letter-spacing:-0.03em}
+.profile-name span{color:var(--ink4)}
+.profile-tagline{font-size:0.76rem;color:var(--ink4);line-height:1.7;margin-bottom:1.5rem}
+.profile-facts{display:flex;flex-direction:column;gap:8px}
+.pf-row{display:flex;align-items:center;gap:10px;font-size:0.76rem;color:var(--ink4)}
+.pf-row strong{color:#e0e0e0;font-weight:500}
+.profile-right{display:flex;flex-direction:column;background:var(--bg)}
+.info-block{padding:1.4rem;border-bottom:1px solid var(--border)}
+.info-block:last-child{border-bottom:none}
+.info-block h4{font-size:0.62rem;font-weight:500;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink4);margin-bottom:0.9rem}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;font-size:0.8rem;border-bottom:1px solid var(--border)}
+.info-row:last-child{border-bottom:none}
+.info-row .label{color:var(--ink3)}
+.info-row .value{color:var(--ink);font-weight:500;text-align:right}
+
+/* SPORT */
+.sport-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.ss-card{background:var(--bg);padding:1.6rem;transition:background 0.15s}
+.ss-card:hover{background:var(--surface)}
+.ss-num{font-size:2.4rem;font-weight:600;color:var(--ink);line-height:1;letter-spacing:-0.04em}
+.ss-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-top:6px;font-weight:500}
+
+.sport-table{width:100%;border-collapse:collapse}
+.sport-table thead th{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink4);padding:10px 16px;border-bottom:1px solid var(--border);text-align:left;font-weight:500}
+.sport-table tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
+.sport-table tbody tr:hover{background:var(--surface)}
+.sport-table tbody td{padding:11px 16px;font-size:0.82rem;color:var(--ink2);vertical-align:middle}
+.sport-table tbody td:first-child{font-weight:500;color:var(--ink)}
+.sport-badge{display:inline-block;font-size:0.62rem;padding:2px 8px;font-weight:500;color:var(--ink3);background:var(--surface2);border:1px solid var(--border)}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.chart-cell{background:var(--bg);padding:1.6rem}
+.chart-label{font-size:0.62rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:1.2rem}
+.chart-wrap{position:relative;height:200px}
+
+/* MAP */
+#travel-map{height:420px;border:1px solid var(--border);margin-bottom:2rem;filter:grayscale(100%)}
+.leaflet-popup-content-wrapper{border-radius:2px;box-shadow:0 4px 20px rgba(0,0,0,0.12);border:1px solid var(--border);padding:0}
+.leaflet-popup-content{font-family:'Inter',sans-serif;font-size:0.8rem;color:#111;padding:12px 14px;margin:0;line-height:1.5}
+.map-popup-name{font-weight:600;margin-bottom:2px}
+.map-popup-meta{font-size:0.7rem;color:#888}
+.map-popup-tag{display:inline-block;font-size:0.6rem;margin-top:6px;padding:2px 7px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase}
+.map-popup-tag.visited{background:#111;color:#fff}
+.map-popup-tag.wish{background:#f3f3f3;color:#888;border:1px solid #e8e8e8}
+.map-legend{display:flex;gap:1.5rem;margin-bottom:0.8rem;font-size:0.72rem;color:var(--ink3)}
+.map-legend span{display:flex;align-items:center;gap:6px}
+.map-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+/* TRAVEL LISTS */
+.travel-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.travel-section{background:var(--bg);padding:1.6rem}
+.travel-section h3{font-size:0.62rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;padding-bottom:0.8rem;border-bottom:1px solid var(--border)}
+.travel-section h3 .dot{width:6px;height:6px;border-radius:50%}
+.travel-item{display:flex;align-items:baseline;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:0.82rem;transition:padding-left 0.15s}
+.travel-item:hover{padding-left:5px}
+.travel-item:last-child{border-bottom:none}
+.travel-item .place{font-weight:500;color:var(--ink)}
+.travel-item .meta{font-size:0.7rem;color:var(--ink4)}
+.travel-item .rating{font-weight:600;color:var(--ink2)}
+
+/* CONTACTS */
+.contacts-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.cs-cell{background:var(--bg);padding:1.4rem;transition:background 0.15s}
+.cs-cell:hover{background:var(--surface)}
+.cs-num{font-size:2rem;font-weight:600;color:var(--ink);letter-spacing:-0.03em;line-height:1}
+.cs-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-top:6px;font-weight:500}
+
+.rel-bar-row{display:grid;grid-template-columns:160px 1fr 44px;align-items:center;gap:12px;margin-bottom:10px}
+.rel-bar-track{height:3px;background:var(--surface2)}
+.rel-bar-fill{height:100%;background:var(--ink);width:0%;transition:width 1s ease}
+.rel-bar-label{font-size:0.76rem;color:var(--ink3)}
+.rel-bar-num{font-size:0.8rem;font-weight:600;color:var(--ink);text-align:right}
+
+/* GOALS */
+.goals-list{display:flex;flex-direction:column;border:1px solid var(--border);margin-bottom:2rem}
+.goal-item{background:var(--bg);border-bottom:1px solid var(--border);padding:1rem 1.4rem;display:flex;align-items:center;gap:14px;transition:background 0.1s}
+.goal-item:last-child{border-bottom:none}
+.goal-item:hover{background:var(--surface)}
+.goal-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;opacity:0.7}
+.goal-name{font-weight:500;font-size:0.84rem;color:var(--ink);flex:1}
+.goal-type{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-top:2px}
+.goal-status{font-size:0.62rem;padding:2px 8px;border:1px solid var(--border);color:var(--ink4);font-weight:500}
+.goal-status.active{color:var(--ink2);border-color:var(--border2)}
+
+/* HABITS */
+.habits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:2rem}
+.habit-card{background:var(--bg);padding:1.2rem;transition:background 0.15s}
+.habit-card:hover{background:var(--surface)}
+.habit-name{font-weight:500;font-size:0.84rem;color:var(--ink);margin-bottom:4px}
+.habit-freq{font-size:0.72rem;color:var(--ink4)}
+.habit-note{font-size:0.7rem;color:var(--ink3);margin-top:4px;font-style:italic}
+
+.fade-in{animation:fi 0.4s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+@media(max-width:900px){
+  .overview-grid{grid-template-columns:repeat(3,1fr)}
+  .travel-grid,.profile-layout,.charts-row{grid-template-columns:1fr}
+  .sport-summary{grid-template-columns:repeat(2,1fr)}
+  header{flex-direction:column;align-items:flex-start;gap:1.5rem;padding:2rem}
+  nav{padding:0 1.5rem}
+  main{padding:2rem 1.5rem 4rem}
+  .header-stats{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-bar"></div>
+<div id="loading-overlay">
+  <div class="loading-text">Načítavam dáta z <span>prod.jarvis.sk</span>...</div>
+</div>
+
+<header>
+  <div class="header-left">
+    <h1>Klári <span>Mezzey</span></h1>
+    <p id="hdr-meta">Osobná dátová mapa · prod.jarvis.sk</p>
+  </div>
+  <div class="header-stats">
+    <div class="hs"><span class="hs-num" id="hdr-contacts">—</span><span class="hs-label">Kontaktov</span></div>
+    <div class="hs"><span class="hs-num" id="hdr-sport">—</span><span class="hs-label">Aktivít</span></div>
+    <div class="hs"><span class="hs-num" id="hdr-travel">—</span><span class="hs-label">Destinácií</span></div>
+    <div class="hs"><span class="hs-num" id="hdr-goals">—</span><span class="hs-label">Cieľov</span></div>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('overview',this)">Prehľad</button>
+  <button onclick="showTab('sport',this)">Šport & Zdravie</button>
+  <button onclick="showTab('travel',this)">Cestovanie</button>
+  <button onclick="showTab('contacts',this)">Kontakty</button>
+  <button onclick="showTab('goals',this)">Ciele & Návyky</button>
+  <button onclick="showTab('life',this)">Život & Záujmy</button>
+</nav>
+
+<main>
+
+<!-- OVERVIEW -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="overview-grid fade-in">
+    <div class="og-cell accent"><div class="og-num" id="ov-total">—</div><div class="og-label">Celkom záznamov</div></div>
+    <div class="og-cell"><div class="og-num" id="ov-persons">—</div><div class="og-label">Osoby</div></div>
+    <div class="og-cell"><div class="og-num" id="ov-sport">—</div><div class="og-label">Šport. aktivít</div></div>
+    <div class="og-cell"><div class="og-num" id="ov-travel">—</div><div class="og-label">Destinácií</div></div>
+    <div class="og-cell"><div class="og-num" id="ov-goals">—</div><div class="og-label">Cieľov</div></div>
+  </div>
+
+  <div class="sec-title" style="margin-top:0">Kto si</div>
+  <div class="profile-layout fade-in" style="animation-delay:0.1s">
+    <div class="profile-card">
+      <div class="profile-name">Klára<br><span>Mezzeyová</span></div>
+      <div class="profile-tagline">Schopnosť rýchlej adaptácie, efektívne plánovanie času, silné komunikačné a organizačné schopnosti.</div>
+      <div class="profile-facts">
+        <div class="pf-row">📍 <strong>Bratislava, Solúnska 2A</strong></div>
+        <div class="pf-row">🚴 <strong>Trek Madona · triatlonistka</strong></div>
+        <div class="pf-row">💼 <strong>Prosight · Forge.Creatives</strong></div>
+        <div class="pf-row">✈️ <strong>Kanada · Taliansko · Španielsko</strong></div>
+        <div class="pf-row">🎯 <strong>Japonsko na wishlist</strong></div>
+      </div>
+    </div>
+    <div class="profile-right">
+      <div class="info-block">
+        <h4>Majetok & Veci</h4>
+        <div class="info-row"><span class="label">Auto</span><span class="value">BMW BT11196 (SUV, 2024)</span></div>
+        <div class="info-row"><span class="label">Bicykel</span><span class="value">Trek Madona (cestný, matná čierna)</span></div>
+        <div class="info-row"><span class="label">Hodinky</span><span class="value">Rolex Mechanical · ~11 000 €</span></div>
+        <div class="info-row"><span class="label">MacBook</span><span class="value">MacBook Pro 2017</span></div>
+        <div class="info-row"><span class="label">Tenisky</span><span class="value">New Balance 1906 · 160 €</span></div>
+        <div class="info-row"><span class="label">Nehnuteľnosť</span><span class="value">Byt, Bratislava · Devín</span></div>
+      </div>
+      <div class="info-block">
+        <h4>Financie & Investície</h4>
+        <div class="info-row"><span class="label">ETF (EIC)</span><span class="value">621,42 €</span></div>
+        <div class="info-row"><span class="label">Cieľ</span><span class="value">Zvýšiť príjem a investície</span></div>
+        <div class="info-row"><span class="label">Projekt</span><span class="value">Forge.Creatives · 14 000 € budget</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-title">Záujmy & Zbierky</div>
+  <div class="cards-grid fade-in" style="animation-delay:0.2s">
+    <div class="card"><div class="card-label">Kolekcia</div><div class="card-title">Marvel Collection</div><div class="card-sub">Iron Man, Thor, plagáty, komiksy, interaktívna výstavná hala</div><div class="card-meta"><span class="chip">collectibles</span></div></div>
+    <div class="card"><div class="card-label">Umenie</div><div class="card-title">The Time Heist</div><div class="card-sub">IMAX Edition plagát · holografická rámová kapsula meniaca farby podľa svetla</div></div>
+    <div class="card"><div class="card-label">Vernisáž</div><div class="card-title">Shades of Thought</div><div class="card-sub">Private Exhibition by Klari Mezzi · Calgary 2025 · diela 100–2000 €</div></div>
+    <div class="card"><div class="card-label">Sériál</div><div class="card-title">Friends (Priatelia)</div><div class="card-sub">Netflix · ikonický sitcom, nadčasový humor, dôležitosť priateľstva</div></div>
+    <div class="card"><div class="card-label">Kniha</div><div class="card-title">Think Again</div><div class="card-sub">Adam Grant · hardcover · English · na prečítanie</div><div class="card-meta"><span class="chip">unread</span></div></div>
+    <div class="card"><div class="card-label">Mazlíček</div><div class="card-title">Ryba 🐟</div><div class="card-sub">Ryba · narodená 19.11.2025 · pohlavie neznáme</div></div>
+  </div>
+</div>
+
+<!-- SPORT -->
+<div class="tab-panel" id="tab-sport">
+  <div class="sport-summary fade-in">
+    <div class="ss-card"><div class="ss-num" id="ss-total">—</div><div class="ss-label">Celkom aktivít</div></div>
+    <div class="ss-card"><div class="ss-num" id="ss-tri">—</div><div class="ss-label">Triatlonov</div></div>
+    <div class="ss-card"><div class="ss-num" id="ss-run">—</div><div class="ss-label">Beh / Plávanie</div></div>
+    <div class="ss-card"><div class="ss-num" id="ss-km">—</div><div class="ss-label">Max km (beh)</div></div>
+  </div>
+
+  <div class="charts-row fade-in" style="animation-delay:0.05s">
+    <div class="chart-cell">
+      <div class="chart-label">Aktivity podľa typu</div>
+      <div class="chart-wrap"><canvas id="chart-types"></canvas></div>
+    </div>
+    <div class="chart-cell">
+      <div class="chart-label">Počet aktivít podľa roka</div>
+      <div class="chart-wrap"><canvas id="chart-years"></canvas></div>
+    </div>
+  </div>
+
+  <div class="sec-title">Všetky aktivity</div>
+  <div style="border:1px solid var(--border);margin-bottom:2rem;overflow-x:auto" class="fade-in" style="animation-delay:0.1s">
+    <table class="sport-table">
+      <thead><tr><th>Aktivita</th><th>Typ</th><th>Dátum</th><th>Vzdialenosť</th><th>Čas</th><th>Kalórie</th><th>Tep</th></tr></thead>
+      <tbody id="sport-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="sec-title">Zdravie</div>
+  <div class="cards-grid fade-in" id="health-cards" style="animation-delay:0.15s"></div>
+</div>
+
+<!-- TRAVEL -->
+<div class="tab-panel" id="tab-travel">
+  <div class="overview-grid fade-in" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+    <div class="og-cell accent"><div class="og-num" id="tv-total">—</div><div class="og-label">Celkom miest</div></div>
+    <div class="og-cell"><div class="og-num" id="tv-visited">—</div><div class="og-label">Navštívených</div></div>
+    <div class="og-cell"><div class="og-num" id="tv-wish">—</div><div class="og-label">Na wishlist</div></div>
+    <div class="og-cell"><div class="og-num">10/10</div><div class="og-label">Tenerife rating</div></div>
+  </div>
+
+  <div class="map-legend">
+    <span><span class="map-dot" style="background:#111"></span> Navštívené</span>
+    <span><span class="map-dot" style="background:#fff;border:1.5px solid #999"></span> Wishlist</span>
+  </div>
+  <div id="travel-map"></div>
+
+  <div class="travel-grid fade-in" style="animation-delay:0.1s">
+    <div class="travel-section">
+      <h3><span class="dot" style="background:#111"></span> Navštívené miesta</h3>
+      <div id="visited-list"></div>
+    </div>
+    <div class="travel-section">
+      <h3><span class="dot" style="background:#ccc;border:1px solid #999"></span> Wishlist</h3>
+      <div id="wishlist-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACTS -->
+<div class="tab-panel" id="tab-contacts">
+  <div class="contacts-stats fade-in" id="contacts-stats"></div>
+  <div class="sec-title">Vzťahová mapa</div>
+  <div style="background:var(--bg);border:1px solid var(--border);padding:2rem;margin-bottom:2rem" class="fade-in" style="animation-delay:0.1s">
+    <div id="rel-bars"></div>
+  </div>
+  <div class="sec-title">Komunity & Projekty</div>
+  <div class="cards-grid fade-in" style="animation-delay:0.15s">
+    <div class="card"><div class="card-label">Triatlonový klub · active</div><div class="card-title">Tri2Fly</div><div class="card-sub">Intervalové behy s klubom · hobby · membership active</div></div>
+    <div class="card"><div class="card-label">Zamestnávateľ</div><div class="card-title">Prosight</div><div class="card-sub">Trainee pozícia · tréningy komunikácie a finančnej odbornosti</div></div>
+    <div class="card"><div class="card-label">Vlastný projekt</div><div class="card-title">Forge.Creatives</div><div class="card-sub">Webové stránky pre podnikateľov · 12 týždňov · 14 000 € budget</div></div>
+    <div class="card"><div class="card-label">Spoločnosť</div><div class="card-title">DiusAi</div><div class="card-sub">Slovenská AI spoločnosť · personalizácia, súkromie, digitálna dôstojnosť</div></div>
+  </div>
+</div>
+
+<!-- GOALS -->
+<div class="tab-panel" id="tab-goals">
+  <div class="sec-title" style="margin-top:0">Ciele</div>
+  <div class="goals-list fade-in" id="goals-list"></div>
+  <div class="sec-title">Denné návyky</div>
+  <div class="habits-grid fade-in" id="habits-grid" style="animation-delay:0.1s"></div>
+</div>
+
+<!-- LIFE -->
+<div class="tab-panel" id="tab-life">
+  <div class="sec-title" style="margin-top:0">Vzdelanie & Zručnosti</div>
+  <div class="cards-grid fade-in">
+    <div class="card"><div class="card-label">Jazyk · basic</div><div class="card-title">Nemčina (DE)</div><div class="card-sub">základná úroveň · od 2025-10-07</div></div>
+    <div class="card"><div class="card-label">Kurz</div><div class="card-title">Violončelo</div><div class="card-sub">Krátky kurz hry na violončelo</div></div>
+    <div class="card"><div class="card-label">Tréning · Prosight</div><div class="card-title">Komunikácia & Financie</div><div class="card-sub">Tréningy na pozícii trainee v Prosight</div></div>
+    <div class="card"><div class="card-label">Zručnosť</div><div class="card-title">Silné komunikačné schopnosti</div><div class="card-sub">Rýchla adaptácia, plánovanie času, práca samostatne aj v tíme</div></div>
+  </div>
+  <div class="sec-title">Jedlo & Stravovanie</div>
+  <div class="cards-grid fade-in" style="animation-delay:0.1s">
+    <div class="card"><div class="card-label">Domáce jedlo</div><div class="card-title">Večera</div><div class="card-sub">Varené vajíčka, zelenina, chlieb so syrom</div></div>
+    <div class="card"><div class="card-label">Zdravie</div><div class="card-title">Plán priberania</div><div class="card-sub">Sledovanie kalorického príjmu, úprava stravovacieho plánu</div></div>
+  </div>
+  <div class="sec-title">Pracovné povolenie & Právne</div>
+  <div class="cards-grid fade-in" style="animation-delay:0.2s">
+    <div class="card"><div class="card-label">Kanada · expired</div><div class="card-title">Pracovné povolenie</div><div class="card-sub">Typ 58 · OPEN zamestnávateľ · platnosť do 2023-08-28</div><div class="card-meta"><span class="chip">expired</span></div></div>
+    <div class="card"><div class="card-label">Magazín · implemented</div><div class="card-title">IN MOTION – The Creative Issue</div><div class="card-sub">Magazínová obálka · Klari Mezzi · trench coat · city dreamer vibe</div></div>
+  </div>
+  <div class="sec-title">Spomienky & Zážitky</div>
+  <div class="cards-grid fade-in" style="animation-delay:0.3s">
+    <div class="card"><div class="card-label">Detstvo</div><div class="card-title">Detstvo na rodinných chatách</div><div class="card-sub">Obdobie vnímané ako čas bezstarostnosti a pokoja v prírode</div></div>
+    <div class="card"><div class="card-label">Rodinný album · 2025-10-14</div><div class="card-title">Otec Ján pri rybárčení</div><div class="card-sub">Pokojná atmosféra, autentické chvíle v prírode pri vode</div></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const TOKEN = '34994|MoD29FRUD6bxyOP2B9IqZsffxDR8XkOWuphClohU77750cfe';
+const API   = 'https://prod.jarvis.sk/api/datamap';
+
+// Coordinate lookup for known places
+const COORDS = {
+  'tenerife':          [28.29, -16.63],
+  'barcelona':         [41.39,   2.17],
+  'neapol':            [40.85,  14.27],
+  'rím':               [41.90,  12.50],
+  'rome':              [41.90,  12.50],
+  'alberta':           [53.93,-116.58],
+  'kanada':            [56.13,-106.35],
+  'canada':            [56.13,-106.35],
+  'austrália':         [-25.27,133.78],
+  'australia':         [-25.27,133.78],
+  'nový zéland':       [-40.90,174.89],
+  'new zealand':       [-40.90,174.89],
+  'japonsko':          [36.20, 138.25],
+  'japan':             [36.20, 138.25],
+  'antelope canyon':   [36.86,-111.37],
+  'monument valley':   [36.98,-110.10],
+  'grand canyon':      [36.11,-112.11],
+  'šamorín':           [47.99,  17.31],
+  'piešťany':          [48.59,  17.83],
+  'trakai':            [54.64,  24.93],
+  'dorney':            [51.53,  -0.65],
+  'castellón':         [39.99,  -0.05],
+  'el pont de suert':  [42.40,   0.74],
+  'cambrils':          [41.07,   1.06],
+  'bratislava':        [48.15,  17.11],
+};
+
+function coordsFor(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  for (const [k, v] of Object.entries(COORDS)) {
+    if (n.includes(k) || k.includes(n)) return v;
+  }
+  return null;
+}
+
+// Tab switching
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'travel' && !window._mapInited) initMap();
+}
+
+function setBar(p) {
+  document.getElementById('loading-bar').style.width = p + '%';
+}
+
+async function init() {
+  try {
+    setBar(15);
+    const res = await fetch(`${API}/instance/list`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner_scope: { type: 'own' } })
+    });
+    setBar(70);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    setBar(90);
+
+    const bySchema = {};
+    (json.instances || []).forEach(i => {
+      const k = i.json_schema_id.split('/').pop().replace('.json','');
+      if (!bySchema[k]) bySchema[k] = [];
+      bySchema[k].push(i.data || {});
+    });
+    window._data = bySchema;
+
+    renderAll(bySchema, json.count || (json.instances||[]).length);
+    setBar(100);
+    setTimeout(() => document.getElementById('loading-overlay').classList.add('hidden'), 350);
+  } catch(e) {
+    console.error('Jarvis API error:', e);
+    document.querySelector('#loading-overlay .loading-text').innerHTML =
+      `Offline — zobrazujem uložené dáta<br><span style="font-size:0.65rem;margin-top:4px;display:block">${e.message}</span>`;
+    setTimeout(() => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+      renderFallback();
+    }, 1800);
+  }
+}
+
+function renderAll(d, total) {
+  const persons = d.person || [];
+  const sports  = d.sport_activity || [];
+  const travels = d.travel_location || [];
+  const goals   = d.goal || [];
+  const health  = d.health_record || [];
+  const habits  = d.habit || [];
+
+  // Header
+  document.getElementById('hdr-contacts').textContent = persons.length;
+  document.getElementById('hdr-sport').textContent    = sports.length;
+  document.getElementById('hdr-travel').textContent   = travels.length;
+  document.getElementById('hdr-goals').textContent    = goals.length;
+  const now = new Date().toLocaleString('sk-SK', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('hdr-meta').textContent = `Osobná dátová mapa · prod.jarvis.sk · ${total} záznamov · ${now}`;
+
+  // Overview
+  document.getElementById('ov-total').textContent   = total;
+  document.getElementById('ov-persons').textContent = persons.length;
+  document.getElementById('ov-sport').textContent   = sports.length;
+  document.getElementById('ov-travel').textContent  = travels.length;
+  document.getElementById('ov-goals').textContent   = goals.length;
+
+  renderSport(sports, health);
+  renderTravel(travels);
+  renderContacts(persons);
+  renderGoals(goals, habits);
+}
+
+// ── SPORT ─────────────────────────────────────────────────
+function renderSport(sports, health) {
+  const tri  = sports.filter(s => /triatlon|triathlon/i.test(s.activity_type||''));
+  const run  = sports.filter(s => /beh|run|maratón/i.test(s.activity_type||s.name||''));
+  const swim = sports.filter(s => /plávanie|swim|bazén/i.test(s.activity_type||s.name||''));
+
+  const maxKm = sports.reduce((mx,s) => {
+    const v = parseFloat((s.distance_km||'').toString().replace(',','.')) || 0;
+    return v > mx ? v : mx;
+  }, 0);
+
+  document.getElementById('ss-total').textContent = sports.length;
+  document.getElementById('ss-tri').textContent   = tri.length;
+  document.getElementById('ss-run').textContent   = run.length + swim.length;
+  document.getElementById('ss-km').textContent    = maxKm > 0 ? maxKm.toFixed(1)+' km' : '—';
+
+  // Table
+  const sorted = [...sports].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  document.getElementById('sport-tbody').innerHTML = sorted.map(s => {
+    const t = (s.activity_type||'').toLowerCase();
+    const cls = 'sport-badge' + (/triatlon|triathlon/.test(t)?' tri':/beh|run|maratón/.test(t)?' beh':/plávanie|swim/.test(t)?' swim':'');
+    return `<tr>
+      <td>${s.name||'—'}</td>
+      <td><span class="${cls}">${s.activity_type||'—'}</span></td>
+      <td>${s.date||'—'}</td>
+      <td>${s.distance_km ? s.distance_km+' km' : '—'}</td>
+      <td>${s.duration_min ? s.duration_min+' min' : '—'}</td>
+      <td>${s.calories ? s.calories+' kcal' : '—'}</td>
+      <td>${s.avg_heart_rate||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Charts
+  const other = sports.filter(s => !tri.includes(s) && !run.includes(s) && !swim.includes(s));
+
+  new Chart(document.getElementById('chart-types'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Triathlon', 'Beh', 'Plávanie', 'Ostatné'],
+      datasets: [{ data: [tri.length, run.length, swim.length, other.length],
+        backgroundColor: ['#111','#555','#999','#ddd'], borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position:'right', labels:{ font:{family:'Inter',size:11}, color:'#888', boxWidth:10, padding:14 } } },
+      cutout: '65%'
+    }
+  });
+
+  const years = {};
+  sports.forEach(s => { const y = (s.date||'').substring(0,4)||'?'; years[y]=(years[y]||0)+1; });
+  const yk = Object.keys(years).filter(y=>y!='?').sort();
+
+  new Chart(document.getElementById('chart-years'), {
+    type: 'bar',
+    data: {
+      labels: yk,
+      datasets: [{ data: yk.map(y=>years[y]), backgroundColor: '#111', borderRadius: 2, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid:{ display:false }, ticks:{ font:{family:'Inter',size:11}, color:'#888' }, border:{color:'#e8e8e8'} },
+        y: { grid:{ color:'#f3f3f3' }, ticks:{ font:{family:'Inter',size:11}, color:'#888', precision:0 }, border:{display:false} }
+      }
+    }
+  });
+
+  // Health cards
+  const hc = document.getElementById('health-cards');
+  const hdata = health.length ? health : [
+    {date:'2025-10-14', name:'Občasné bolesti spodného chrbta', details:'Trojfázový plán: aktivácia & mobilita → posilňovanie core → strečing'},
+    {date:'2023-10-14', name:'Needlingová terapia', details:'6-týždňová terapia v Kanade po akútnej bolesti spodného chrbta'},
+    {date:'2025-10-07', name:'Dioptrické okuliare', details:'Na čítanie: 0.75 D · Na prácu s monitorom: 1.00 D'},
+    {date:'2025-10-28', name:'Plán na priberanie hmotnosti', details:'Sledovanie pokroku a úprava stravovacieho plánu'},
+  ];
+  hc.innerHTML = hdata.map(h => `
+    <div class="card">
+      <div class="card-label">${h.date||'—'}</div>
+      <div class="card-title">${h.name||'—'}</div>
+      <div class="card-sub">${(h.details||'').substring(0,130)}</div>
+    </div>`).join('');
+}
+
+// ── TRAVEL ────────────────────────────────────────────────
+window._mapInited = false;
+
+function initMap() {
+  window._mapInited = true;
+  const map = L.map('travel-map', { scrollWheelZoom: false }).setView([25, 15], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(map);
+
+  const travels = window._data?.travel_location || [];
+  travels.forEach(t => {
+    const name    = t.place_name || t.name || '';
+    const coords  = coordsFor(name);
+    if (!coords) return;
+    const visited = t.visit_status === 'visited';
+    const rating  = t.personal_rating;
+
+    L.circleMarker(coords, visited
+      ? { radius:7, fillColor:'#111', color:'#111', weight:1, fillOpacity:1 }
+      : { radius:5, fillColor:'#fff', color:'#888', weight:1.5, fillOpacity:1 }
+    ).addTo(map).bindPopup(`
+      <div class="map-popup-name">${name}</div>
+      <div class="map-popup-meta">${t.place_type||''} ${rating?'· ★ '+rating:''}</div>
+      <span class="map-popup-tag ${visited?'visited':'wish'}">${visited?'navštívené':'wishlist'}</span>
+    `);
+  });
+
+  setTimeout(() => map.invalidateSize(), 150);
+}
+
+function renderTravel(travels) {
+  const visited  = travels.filter(t => t.visit_status === 'visited');
+  const wishlist = travels.filter(t => t.visit_status !== 'visited');
+
+  document.getElementById('tv-total').textContent   = travels.length;
+  document.getElementById('tv-visited').textContent = visited.length;
+  document.getElementById('tv-wish').textContent    = wishlist.length;
+
+  const fmt = (t, withRating) => {
+    const name   = t.place_name || t.name || '—';
+    const parts  = [t.visit_date, t.place_type].filter(Boolean);
+    const rating = withRating && t.personal_rating ? `<span class="rating">★ ${t.personal_rating}</span>` : '';
+    return `<div class="travel-item">
+      <span class="place">${name}</span>
+      <span class="meta">${parts.join(' · ')}</span>
+      ${rating}
+    </div>`;
+  };
+
+  document.getElementById('visited-list').innerHTML  = visited.length  ? visited.map(t=>fmt(t,true)).join('')  : '<div style="color:var(--ink4);font-size:0.8rem;padding:12px 0">Žiadne záznamy</div>';
+  document.getElementById('wishlist-list').innerHTML = wishlist.length ? wishlist.map(t=>fmt(t,false)).join('') : '<div style="color:var(--ink4);font-size:0.8rem;padding:12px 0">Žiadne záznamy</div>';
+}
+
+// ── CONTACTS ──────────────────────────────────────────────
+function renderContacts(persons) {
+  const rels = {};
+  persons.forEach(p => (p.relationship_to_owner||[]).forEach(r => rels[r]=(rels[r]||0)+1));
+
+  const labels = {
+    other:'Ostatní', friend_of:'Priatelia', close_friend_of:'Blízki priatelia',
+    best_friend_of:'Najlepší priatelia', cousin_of:'Bratranci/sest.',
+    colleague_of:'Kolegovia', ex_partner_of:'Ex-partneri',
+    father_of:'Otec', mother_of:'Matka', brother_of:'Súrodenec',
+    grandfather_of:'Starý otec', grandmother_of:'Stará mama', coach_of:'Tréneri'
+  };
+
+  const top = Object.entries(rels).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  document.getElementById('contacts-stats').innerHTML =
+    `<div class="cs-cell"><div class="cs-num">${persons.length}</div><div class="cs-label">Celkom osôb</div></div>` +
+    top.map(([k,v]) => `<div class="cs-cell"><div class="cs-num">${v}</div><div class="cs-label">${labels[k]||k}</div></div>`).join('');
+
+  const maxV = top[0]?.[1] || 1;
+  document.getElementById('rel-bars').innerHTML = top.map(([k,v]) => `
+    <div class="rel-bar-row">
+      <div class="rel-bar-label">${labels[k]||k}</div>
+      <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${(v/maxV*100).toFixed(1)}%"></div></div>
+      <div class="rel-bar-num">${v}</div>
+    </div>`).join('');
+  setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
+}
+
+// ── GOALS ─────────────────────────────────────────────────
+function renderGoals(goals, habits) {
+  const icons = { health:'💪', financial:'💰', professional:'💼', personal:'🌿' };
+
+  document.getElementById('goals-list').innerHTML = goals.map(g => `
+    <div class="goal-item">
+      <div class="goal-icon">${icons[g.goal_type]||'🎯'}</div>
+      <div style="flex:1">
+        <div class="goal-name">${g.name||'—'}</div>
+        <div class="goal-type">${g.goal_type||''} ${g.start_date?'· od '+g.start_date:''}</div>
+      </div>
+      <span class="goal-status ${g.status==='active'?'active':''}">${g.status||'—'}</span>
+    </div>`).join('');
+
+  const hdata = habits.length ? habits : [
+    {name:'💧 Pitný režim', frequency:'denne', notes:'občas robí problém'},
+    {name:'🏊 Plávanie', frequency:'—'},
+    {name:'🏃 Beh', frequency:'2–3× týždenne'},
+    {name:'💪 Cvičenie', frequency:'denne'},
+    {name:'✨ Starostlivosť o pleť', frequency:'denne'},
+    {name:'📵 Ráno bez mobilu', frequency:'denne'},
+    {name:'🌅 Ranná rutina', frequency:'denne'},
+  ];
+  document.getElementById('habits-grid').innerHTML = hdata.map(h => `
+    <div class="habit-card">
+      <div class="habit-name">${h.name||'—'}</div>
+      <div class="habit-freq">${h.frequency||'—'}</div>
+      ${h.notes?`<div class="habit-note">${h.notes}</div>`:''}
+    </div>`).join('');
+}
+
+// ── FALLBACK ──────────────────────────────────────────────
+function renderFallback() {
+  document.getElementById('hdr-contacts').textContent = '685';
+  document.getElementById('hdr-sport').textContent    = '19';
+  document.getElementById('hdr-travel').textContent   = '25';
+  document.getElementById('hdr-goals').textContent    = '15';
+  document.getElementById('hdr-meta').textContent     = 'Osobná dátová mapa · prod.jarvis.sk · offline';
+  ['ov-total','ov-persons','ov-sport','ov-travel','ov-goals'].forEach((id,i) =>
+    document.getElementById(id).textContent = ['1036','685','19','25','15'][i]);
+  ['ss-total','ss-tri','ss-run','ss-km'].forEach((id,i) =>
+    document.getElementById(id).textContent = ['19','13','5','21.1 km'][i]);
+  document.getElementById('tv-total').textContent   = '25';
+  document.getElementById('tv-visited').textContent = '6';
+  document.getElementById('tv-wish').textContent    = '19';
+
+  // Fallback sport table
+  const rows = [
+    ['SLOVAKMAN TRIATHLON Ironman','Triathlon','2026-08-01','—','—','—','—'],
+    ['Mitja Marató Barcelona 2026','Beh','2026-02-15','21.097 km','—','—','—'],
+    ['Beh','Beh','2025-11-14','10 km','50 min','400 kcal','165'],
+    ['Bazén','Plávanie','2025-11-14','1.5 km','—','300 kcal','140'],
+    ['ATW Dorney Super Sprint','Triathlon','2025-07-13','—','—','—','—'],
+  ];
+  document.getElementById('sport-tbody').innerHTML = rows.map(r =>
+    `<tr>${r.map((c,i)=>i===1?`<td><span class="sport-badge">${c}</span></td>`:`<td>${c}</td>`).join('')}</tr>`
+  ).join('');
+
+  // Fallback charts
+  new Chart(document.getElementById('chart-types'), {
+    type: 'doughnut',
+    data: { labels:['Triathlon','Beh','Plávanie','Ostatné'], datasets:[{data:[13,4,1,1],backgroundColor:['#111','#555','#999','#ddd'],borderWidth:0}] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ font:{family:'Inter',size:11},color:'#888',boxWidth:10,padding:14 } } }, cutout:'65%' }
+  });
+  new Chart(document.getElementById('chart-years'), {
+    type:'bar', data:{ labels:['2025','2026'], datasets:[{data:[14,5],backgroundColor:'#111',borderRadius:2}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{family:'Inter',size:11},color:'#888'},border:{color:'#e8e8e8'}}, y:{grid:{color:'#f3f3f3'},ticks:{font:{family:'Inter',size:11},color:'#888',precision:0},border:{display:false}} } }
+  });
+
+  // Fallback health
+  document.getElementById('health-cards').innerHTML = [
+    {date:'2025-10-14', name:'Bolesti spodného chrbta', details:'Trojfázový plán: aktivácia & mobilita → posilňovanie core → strečing'},
+    {date:'2023-10-14', name:'Needlingová terapia', details:'6-týždňová terapia v Kanade'},
+    {date:'2025-10-07', name:'Dioptrické okuliare', details:'Čítanie: 0.75 D · Monitor: 1.00 D'},
+  ].map(h=>`<div class="card"><div class="card-label">${h.date}</div><div class="card-title">${h.name}</div><div class="card-sub">${h.details}</div></div>`).join('');
+
+  // Fallback travel
+  window._data = {
+    travel_location: [
+      {place_name:'Tenerife', visit_status:'visited', personal_rating:'10', place_type:'region', visit_date:'2024'},
+      {place_name:'Neapol', visit_status:'visited', place_type:'city', visit_date:'2025-10-08'},
+      {place_name:'Rím', visit_status:'visited', place_type:'city', visit_date:'2025-10-08'},
+      {place_name:'Alberta', visit_status:'visited', place_type:'region'},
+      {place_name:'Kanada', visit_status:'visited', place_type:'country'},
+      {place_name:'Japonsko', visit_status:'wishlist', place_type:'country'},
+      {place_name:'Austrália', visit_status:'wishlist', place_type:'country'},
+      {place_name:'Nový Zéland', visit_status:'wishlist', place_type:'country'},
+      {place_name:'Antelope Canyon', visit_status:'wishlist', place_type:'sight'},
+      {place_name:'Grand Canyon', visit_status:'wishlist', place_type:'region'},
+      {place_name:'Barcelona', visit_status:'wishlist', place_type:'city', visit_date:'2026-02'},
+      {place_name:'Piešťany', visit_status:'wishlist', place_type:'city', visit_date:'2026-08'},
+    ]
+  };
+  renderTravel(window._data.travel_location);
+
+  // Fallback contacts
+  const rels = [{label:'Ostatní',n:601},{label:'Priatelia',n:34},{label:'Blízki priatelia',n:17},{label:'Bratranci/sest.',n:14},{label:'Najlepší priatelia',n:6},{label:'Kolegovia',n:5},{label:'Ex-partneri',n:3}];
+  document.getElementById('contacts-stats').innerHTML =
+    `<div class="cs-cell"><div class="cs-num">685</div><div class="cs-label">Celkom osôb</div></div>` +
+    rels.map(r=>`<div class="cs-cell"><div class="cs-num">${r.n}</div><div class="cs-label">${r.label}</div></div>`).join('');
+  const maxV = 601;
+  document.getElementById('rel-bars').innerHTML = rels.map(r=>`
+    <div class="rel-bar-row">
+      <div class="rel-bar-label">${r.label}</div>
+      <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${(r.n/maxV*100).toFixed(1)}%"></div></div>
+      <div class="rel-bar-num">${r.n}</div>
+    </div>`).join('');
+  setTimeout(()=>document.querySelectorAll('.rel-bar-fill').forEach(el=>el.style.width=el.dataset.w),250);
+
+  // Fallback goals
+  const goals = [
+    {name:'Plán na priberanie hmotnosti',goal_type:'health',start_date:'2025-10-28',status:'active'},
+    {name:'Zmiernenie bolesti chrbta',goal_type:'health',start_date:'2025-10-14',status:'active'},
+    {name:'Projekt Forge.Creatives',goal_type:'professional',start_date:'2025-10-14',status:'active'},
+    {name:'Zvýšiť príjem a investície',goal_type:'financial',start_date:'2025-10-09',status:'active'},
+    {name:'Výlet do Japonska',goal_type:'personal',start_date:'2025-10-09',status:'active'},
+    {name:'Žiť v Kanade',goal_type:'personal',start_date:'2025-10-09',status:'active'},
+    {name:'Kariérny rast',goal_type:'professional',status:'active'},
+    {name:'Flexibilita a sloboda',goal_type:'personal',status:'active'},
+  ];
+  renderGoals(goals, []);
+}
+
+init();
+</script>
+</body>
+</html>
