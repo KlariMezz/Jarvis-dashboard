@@ -677,11 +677,33 @@ function initMap() {
   setTimeout(() => map.invalidateSize(), 150);
 }
 
-function renderTravel(travels) {
-  const visited  = travels.filter(t => t.visit_status === 'visited');
-  const wishlist = travels.filter(t => t.visit_status !== 'visited');
+function deduplicatePlaces(travels) {
+  const map = {};
+  travels.forEach(t => {
+    const key = (t.place_name || t.name || '').trim().toLowerCase()
+      .replace(/\s+/g,'').replace(/nový zéland|new zealand/,'newzealand')
+      .replace(/austrália|australia/,'australia')
+      .replace(/japonsko|japan/,'japan')
+      .replace(/kanada|canada/,'canada')
+      .replace(/tenerife/,'tenerife');
+    if (!map[key]) {
+      map[key] = t;
+    } else {
+      const existing = map[key];
+      // Prefer: visited > wishlist, then more data (date, rating)
+      const score = x => (x.visit_status==='visited'?10:0) + (x.visit_date?2:0) + (x.personal_rating?1:0) + (x.place_type?1:0);
+      if (score(t) > score(existing)) map[key] = t;
+    }
+  });
+  return Object.values(map);
+}
 
-  document.getElementById('tv-total').textContent   = travels.length;
+function renderTravel(travels) {
+  const deduped  = deduplicatePlaces(travels);
+  const visited  = deduped.filter(t => t.visit_status === 'visited');
+  const wishlist = deduped.filter(t => t.visit_status !== 'visited');
+
+  document.getElementById('tv-total').textContent   = deduped.length;
   document.getElementById('tv-visited').textContent = visited.length;
   document.getElementById('tv-wish').textContent    = wishlist.length;
 
@@ -1043,8 +1065,37 @@ async function saveDetail() {
 // ── CONTACT LIST ─────────────────────────────────────────────────────────────
 let _allContacts = [];
 
+function deduplicatePersons(persons) {
+  const seen = {};
+  const result = [];
+  persons.forEach(p => {
+    const d = p.data || p;
+    const name = (d.name || [d.first_name, d.last_name].filter(Boolean).join(' ')).trim().toLowerCase();
+    const birth = d.birth_date || '';
+    const key = name + '|' + birth;
+    if (!key || key === '|') { result.push(p); return; }
+    if (!seen[key]) {
+      seen[key] = p;
+      result.push(p);
+    } else {
+      // Keep the one with more data fields filled
+      const score = x => {
+        const dd = x.data || x;
+        return Object.values(dd).filter(v => v && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
+      };
+      if (score(p) > score(seen[key])) {
+        const idx = result.indexOf(seen[key]);
+        if (idx >= 0) result[idx] = p;
+        seen[key] = p;
+      }
+    }
+  });
+  return result;
+}
+
 function renderContactList(persons) {
-  _allContacts = persons.map(p => {
+  const deduped = deduplicatePersons(persons);
+  _allContacts = deduped.map(p => {
     const d = p.data || p;
     return {
       uid: d.uid,
