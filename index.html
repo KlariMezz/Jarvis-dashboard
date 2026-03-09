@@ -725,12 +725,8 @@ function renderTravel(travels) {
 
 // ── CONTACTS ──────────────────────────────────────────────
 function renderContacts(persons) {
-  // Deduplicate first so counts are correct
-  const dedupedPersons = deduplicatePersons(persons.map(p => ({data: p}))).map(p => p.data || p);
-
   const rels = {};
-  dedupedPersons.forEach(p => (p.relationship_to_owner||[]).forEach(r => {
-    // Normalize: treat parent_of as ignored (use father_of/mother_of instead)
+  persons.forEach(p => (p.relationship_to_owner||[]).forEach(r => {
     if (r === 'parent_of') return;
     rels[r] = (rels[r]||0) + 1;
   }));
@@ -740,32 +736,42 @@ function renderContacts(persons) {
     best_friend_of:'Najlepší priatelia', cousin_of:'Bratranci/sest.',
     colleague_of:'Kolegovia', ex_partner_of:'Ex-partneri',
     father_of:'Otec', mother_of:'Mama', brother_of:'Súrodenec',
-    grandfather_of:'Starý otec', grandmother_of:'Stará mama', coach_of:'Tréneri'
+    sister_of:'Sestra', grandfather_of:'Starý otec',
+    grandmother_of:'Stará mama', coach_of:'Tréneri',
+    aunt_of:'Teta', uncle_of:'Ujo', student_of:'Študent'
   };
 
-  const top = Object.entries(rels).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const top = Object.entries(rels).sort((a,b)=>b[1]-a[1]).slice(0,14);
 
-  // "Celkom osôb" scrolls to list; each rel cell filters the list
   document.getElementById('contacts-stats').innerHTML =
-    `<div class="cs-cell click-item" onclick="filterByRel(null)" title="Zobraziť všetkých" style="cursor:pointer">
-       <div class="cs-num">${dedupedPersons.length}</div><div class="cs-label">Celkom osôb</div>
+    `<div class="cs-cell click-item" onclick="filterByRel(null)" style="cursor:pointer">
+       <div class="cs-num">${persons.length}</div><div class="cs-label">Celkom osôb</div>
      </div>` +
     top.map(([k,v]) => `
-      <div class="cs-cell click-item" onclick="filterByRel('${k}')" title="Zobraziť: ${labels[k]||k}" style="cursor:pointer">
+      <div class="cs-cell click-item" onclick="filterByRel('${k}')" style="cursor:pointer">
         <div class="cs-num">${v}</div><div class="cs-label">${labels[k]||k}</div>
       </div>`).join('');
 
   const maxV = top[0]?.[1] || 1;
   document.getElementById('rel-bars').innerHTML = top.map(([k,v]) => `
-    <div class="rel-bar-row" onclick="filterByRel('${k}')" style="cursor:pointer" title="Zobraziť: ${labels[k]||k}">
+    <div class="rel-bar-row" onclick="filterByRel('${k}')" style="cursor:pointer">
       <div class="rel-bar-label">${labels[k]||k}</div>
       <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${(v/maxV*100).toFixed(1)}%"></div></div>
       <div class="rel-bar-num">${v}</div>
     </div>`).join('');
   setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
 
-  // Full contact list - pass already deduplicated persons
-  renderContactList(dedupedPersons.map(p => ({data: p})));
+  // Priamy zoznam kontaktov - bez wrappingu, bez deduplikácie
+  _allContacts = persons.map(p => ({
+    uid: p.uid,
+    name: p.name || [p.first_name, p.last_name].filter(Boolean).join(' ') || '?',
+    rels: Array.isArray(p.relationship_to_owner) ? p.relationship_to_owner.filter(r => r !== 'parent_of') : [],
+    data: p
+  })).sort((a,b) => a.name.localeCompare(b.name, 'sk'));
+
+  document.getElementById('contact-count-label').textContent = `(${_allContacts.length})`;
+  renderContactListFiltered('');
+}
 }
 
 function filterByRel(relKey) {
@@ -1082,18 +1088,7 @@ function scoreRecord(d) {
 }
 
 function renderContactList(persons) {
-  const deduped = deduplicatePersons(persons);
-  _allContacts = deduped.map(p => {
-    const d = p.data || p;
-    return {
-      uid: d.uid,
-      name: d.name || [d.first_name, d.last_name].filter(Boolean).join(' ') || '?',
-      rels: Array.isArray(d.relationship_to_owner) ? d.relationship_to_owner : [],
-      data: d
-    };
-  }).sort((a,b) => a.name.localeCompare(b.name, 'sk'));
-
-  document.getElementById('contact-count-label').textContent = `(${_allContacts.length})`;
+  // Táto funkcia už nie je primárne volaná - renderContacts nastavuje _allContacts priamo
   renderContactListFiltered('');
 }
 
