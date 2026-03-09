@@ -1073,47 +1073,12 @@ async function saveDetail() {
 let _allContacts = [];
 
 function deduplicatePersons(persons) {
-  // Len skry duplikáty pri zobrazení - ponechaj vždy záznam s viac údajmi
-  const seen = {};
-  const result = [];
-  persons.forEach(p => {
-    const d = p.data || p;
-    const firstName = (d.first_name || '').trim().toLowerCase();
-    const lastName  = (d.last_name  || '').trim().toLowerCase();
-    const nameField = (d.name || '').trim().toLowerCase();
-    const fullName  = nameField || `${firstName} ${lastName}`.trim();
-    const birth     = d.birth_date || '';
-    const key       = fullName + '|' + birth;
-
-    if (!fullName || !birth) {
-      // Ak nemáme meno+dátum, vždy zobraz (nemôžeme porovnávať)
-      result.push(p);
-      return;
-    }
-
-    if (!seen[key]) {
-      seen[key] = { p, score: scoreRecord(d) };
-      result.push(p);
-    } else {
-      const s = scoreRecord(d);
-      if (s > seen[key].score) {
-        // Nahraď starší záznam lepším
-        const idx = result.indexOf(seen[key].p);
-        if (idx >= 0) result[idx] = p;
-        seen[key] = { p, score: s };
-      }
-      // Starší jednoducho preskočíme - nezobrazíme
-    }
-  });
-  return result;
+  // Bez filtrovania - zobraz všetko presne tak ako je v Jarvis
+  return persons;
 }
 
 function scoreRecord(d) {
-  return Object.entries(d).filter(([k, v]) =>
-    v !== null && v !== '' && v !== undefined &&
-    !(Array.isArray(v) && v.length === 0) &&
-    !['uid','relationship_to_owner'].includes(k)
-  ).length;
+  return Object.keys(d).length;
 }
 
 function renderContactList(persons) {
