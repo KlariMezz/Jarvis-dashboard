@@ -1073,17 +1073,47 @@ async function saveDetail() {
 let _allContacts = [];
 
 function deduplicatePersons(persons) {
-  // Zmaž len konkrétne known duplicate UIDs (slabšie záznamy)
-  const SKIP_UIDS = new Set([
-    'd2feeb1b-a55d-4c33-89ce-439bfeba4018', // Adam Mezzey starší (lepší: 7d1c4734)
-    'b57c7cc2-a794-40e0-a279-8f94ba9ab131', // Ľuboš Bílek starší (lepší: 9537e699)
-    'd844fd20-44e1-4fd7-ae35-9e7157f83143', // Ján Mezzey starší score=4 (lepší: 9f154dc5 score=9)
-    '91eb0645-5768-49d8-8b82-edc27ab5702a', // "Majka" duplicit (lepší: 111b0555 Mária Bílková)
-  ]);
-  return persons.filter(p => {
-    const uid = (p.data || p).uid || '';
-    return !SKIP_UIDS.has(uid);
+  // Len skry duplikáty pri zobrazení - ponechaj vždy záznam s viac údajmi
+  const seen = {};
+  const result = [];
+  persons.forEach(p => {
+    const d = p.data || p;
+    const firstName = (d.first_name || '').trim().toLowerCase();
+    const lastName  = (d.last_name  || '').trim().toLowerCase();
+    const nameField = (d.name || '').trim().toLowerCase();
+    const fullName  = nameField || `${firstName} ${lastName}`.trim();
+    const birth     = d.birth_date || '';
+    const key       = fullName + '|' + birth;
+
+    if (!fullName || !birth) {
+      // Ak nemáme meno+dátum, vždy zobraz (nemôžeme porovnávať)
+      result.push(p);
+      return;
+    }
+
+    if (!seen[key]) {
+      seen[key] = { p, score: scoreRecord(d) };
+      result.push(p);
+    } else {
+      const s = scoreRecord(d);
+      if (s > seen[key].score) {
+        // Nahraď starší záznam lepším
+        const idx = result.indexOf(seen[key].p);
+        if (idx >= 0) result[idx] = p;
+        seen[key] = { p, score: s };
+      }
+      // Starší jednoducho preskočíme - nezobrazíme
+    }
   });
+  return result;
+}
+
+function scoreRecord(d) {
+  return Object.entries(d).filter(([k, v]) =>
+    v !== null && v !== '' && v !== undefined &&
+    !(Array.isArray(v) && v.length === 0) &&
+    !['uid','relationship_to_owner'].includes(k)
+  ).length;
 }
 
 function renderContactList(persons) {
