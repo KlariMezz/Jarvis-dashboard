@@ -726,8 +726,7 @@ function renderTravel(travels) {
 // ── CONTACTS ──────────────────────────────────────────────
 function renderContacts(persons) {
   const rels = {};
-  persons.forEach(p => (p.relationship_to_owner||[]).forEach(r => {
-    if (r === 'parent_of') return;
+  persons.forEach(p => normalizeRels(p.relationship_to_owner).forEach(r => {
     rels[r] = (rels[r]||0) + 1;
   }));
 
@@ -743,7 +742,6 @@ function renderContacts(persons) {
 
   const familyRels = ['father_of','mother_of','brother_of','sister_of','grandfather_of','grandmother_of'];
   const allEntries = Object.entries(rels);
-  // Rodina vždy na začiatok, potom ostatní podľa počtu
   const family = allEntries.filter(([k]) => familyRels.includes(k)).sort((a,b) => familyRels.indexOf(a[0]) - familyRels.indexOf(b[0]));
   const rest = allEntries.filter(([k]) => !familyRels.includes(k)).sort((a,b) => b[1]-a[1]);
   const top = [...family, ...rest].slice(0, 20);
@@ -766,11 +764,10 @@ function renderContacts(persons) {
     </div>`).join('');
   setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
 
-  // Priamy zoznam kontaktov - bez wrappingu, bez deduplikácie
   _allContacts = persons.map(p => ({
     uid: p.uid,
     name: p.name || [p.first_name, p.last_name].filter(Boolean).join(' ') || '?',
-    rels: Array.isArray(p.relationship_to_owner) ? p.relationship_to_owner.filter(r => r !== 'parent_of') : [],
+    rels: normalizeRels(p.relationship_to_owner),
     data: p
   })).sort((a,b) => a.name.localeCompare(b.name, 'sk'));
 
@@ -1082,9 +1079,23 @@ async function saveDetail() {
 // ── CONTACT LIST ─────────────────────────────────────────────────────────────
 let _allContacts = [];
 
+function normalizeRels(raw) {
+  // Vzťah môže byť string alebo array — normalizuj vždy na array
+  const arr = Array.isArray(raw) ? raw : (raw ? [String(raw)] : []);
+  return arr.map(r => {
+    const s = (r || '').toLowerCase().trim();
+    if (s === 'mama' || s === 'mother' || s === 'matka') return 'mother_of';
+    if (s === 'otec' || s === 'father' || s === 'tato') return 'father_of';
+    if (s === 'brat' || s === 'brother') return 'brother_of';
+    if (s === 'sestra' || s === 'sister') return 'sister_of';
+    if (s === 'dedko' || s === 'starý otec' || s === 'grandfather') return 'grandfather_of';
+    if (s === 'babička' || s === 'stará mama' || s === 'grandmother') return 'grandmother_of';
+    return r;
+  }).filter(r => r && r !== 'parent_of');
+}
+
 function deduplicatePersons(persons) {
-  // Bez filtrovania - zobraz všetko presne tak ako je v Jarvis
-  return persons;
+  return persons; // Zobraz všetko presne tak ako je v Jarvis
 }
 
 function scoreRecord(d) {
