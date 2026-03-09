@@ -1073,23 +1073,43 @@ async function saveDetail() {
 let _allContacts = [];
 
 function deduplicatePersons(persons) {
+  // Explicitly skip known duplicate UIDs (weaker/older records)
+  const SKIP_UIDS = new Set([
+    'd2feeb1b-a55d-4c33-89ce-439bfeba4018', // Adam Mezzey starší záznam
+    'b57c7cc2-a794-40e0-a279-8f94ba9ab131', // Ľuboš Bílek starší záznam
+    'd844fd20-44e1-4fd7-ae35-9e7157f83143', // Ján Mezzey starší záznam
+    '91eb0645-5768-49d8-8b82-edc27ab5702a', // Majka - duplicit Márie Bílkovej
+  ]);
+
   const seen = {};
   const result = [];
+
   persons.forEach(p => {
     const d = p.data || p;
-    const name = (d.name || [d.first_name, d.last_name].filter(Boolean).join(' ')).trim().toLowerCase();
+    const uid = d.uid || '';
+
+    // Skip known duplicates
+    if (SKIP_UIDS.has(uid)) return;
+
+    // Also deduplicate by normalized name + birth_date as safety net
+    const firstName = (d.first_name || '').trim().toLowerCase();
+    const lastName = (d.last_name || '').trim().toLowerCase();
+    const nameField = (d.name || '').trim().toLowerCase();
+    const fullName = nameField || `${firstName} ${lastName}`.trim();
     const birth = d.birth_date || '';
-    const key = name + '|' + birth;
-    if (!key || key === '|') { result.push(p); return; }
+    const key = fullName + '|' + birth;
+
+    if (key === '|' || !fullName) {
+      result.push(p);
+      return;
+    }
+
     if (!seen[key]) {
       seen[key] = p;
       result.push(p);
     } else {
-      // Keep the one with more data fields filled
-      const score = x => {
-        const dd = x.data || x;
-        return Object.values(dd).filter(v => v && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
-      };
+      // Keep the one with more filled fields
+      const score = x => Object.values(x.data || x).filter(v => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
       if (score(p) > score(seen[key])) {
         const idx = result.indexOf(seen[key]);
         if (idx >= 0) result[idx] = p;
@@ -1097,6 +1117,7 @@ function deduplicatePersons(persons) {
       }
     }
   });
+
   return result;
 }
 
