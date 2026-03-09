@@ -973,12 +973,23 @@ function buildForm(schema, data) {
       return `<div class="df"><label>${label}</label><textarea id="df_${key}">${val}</textarea></div>`;
     }
     if (type === 'multiselect') {
-      const selected = Array.isArray(val) ? val : [];
+      const selected = Array.isArray(val) ? val : (val ? [val] : []);
+      const relLabels = {
+        other:'Ostatní', friend_of:'Priateľ/ka', close_friend_of:'Blízky priateľ',
+        best_friend_of:'Najlepší priateľ', cousin_of:'Bratranec/sesternica',
+        colleague_of:'Kolega/kolegyňa', ex_partner_of:'Ex-partner/ka',
+        family:'Rodina', coach_of:'Tréner', father_of:'Otec', mother_of:'Mama',
+        brother_of:'Brat', sister_of:'Sestra', grandfather_of:'Starý otec',
+        grandmother_of:'Stará mama', aunt_of:'Teta', uncle_of:'Ujo',
+        student_of:'Študent', employer_of:'Zamestnávateľ',
+        superior_of:'Nadriadený', collaborator_of:'Spolupracovník', neighbor_of:'Sused'
+      };
       const checkboxes = opts.map(o => `
-        <label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;padding:3px 0;cursor:pointer">
-          <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''}> ${o}
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;padding:5px 8px;cursor:pointer;border-radius:3px;transition:background 0.1s" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background=''">
+          <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''}> 
+          <span>${relLabels[o] || o}</span>
         </label>`).join('');
-      return `<div class="df"><label>${label}</label><div id="df_${key}" style="padding:6px 0">${checkboxes}</div></div>`;
+      return `<div class="df"><label>${label}</label><div id="df_${key}" style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:4px 0;border:1px solid var(--border);background:var(--bg)">${checkboxes}</div></div>`;
     }
     return `<div class="df"><label>${label}</label><input id="df_${key}" type="${type}" value="${val}"></div>`;
   };
