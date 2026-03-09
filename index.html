@@ -150,10 +150,10 @@ main{max-width:1200px;margin:0 auto;padding:2.5rem 3rem 5rem}
 .cs-label{font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink4);margin-top:6px;font-weight:500}
 
 .rel-bar-row{display:grid;grid-template-columns:160px 1fr 44px;align-items:center;gap:12px;margin-bottom:10px}
-.rel-bar-track{height:3px;background:var(--surface2)}
-.rel-bar-fill{height:100%;background:var(--ink);width:0%;transition:width 1s ease}
-.rel-bar-label{font-size:0.76rem;color:var(--ink3)}
-.rel-bar-num{font-size:0.8rem;font-weight:600;color:var(--ink);text-align:right}
+.rel-bar-track{height:3px;background:var(--surface2);overflow:hidden;min-width:0}
+.rel-bar-fill{height:100%;background:var(--ink);width:0%;transition:width 1s ease;max-width:100%}
+.rel-bar-label{font-size:0.76rem;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-bar-num{font-size:0.8rem;font-weight:600;color:var(--ink);text-align:right;white-space:nowrap}
 
 /* GOALS */
 .goals-list{display:flex;flex-direction:column;border:1px solid var(--border);margin-bottom:2rem}
@@ -737,7 +737,10 @@ function renderContacts(persons) {
     father_of:'Otec', mother_of:'Mama', brother_of:'Súrodenec',
     sister_of:'Sestra', grandfather_of:'Starý otec',
     grandmother_of:'Stará mama', coach_of:'Tréneri',
-    aunt_of:'Teta', uncle_of:'Ujo', student_of:'Študent'
+    aunt_of:'Teta', uncle_of:'Ujo', student_of:'Študent',
+    employer_of:'Zamestnávateľ', superior_of:'Nadriadený',
+    collaborator_of:'Spolupracovník', neighbor_of:'Sused',
+    family:'Rodina', partner_of:'Partner/ka'
   };
 
   const familyRels = ['father_of','mother_of','brother_of','sister_of','grandfather_of','grandmother_of'];
@@ -755,13 +758,18 @@ function renderContacts(persons) {
         <div class="cs-num">${v}</div><div class="cs-label">${labels[k]||k}</div>
       </div>`).join('');
 
-  const maxV = top[0]?.[1] || 1;
-  document.getElementById('rel-bars').innerHTML = top.map(([k,v]) => `
-    <div class="rel-bar-row" onclick="filterByRel('${k}')" style="cursor:pointer">
+  // Bary - každá skupina škáluje voči svojmu maximu pre lepšiu čitateľnosť
+  const familyMax = Math.max(...family.map(([,v])=>v), 1);
+  const restMax   = Math.max(...rest.map(([,v])=>v), 1);
+  document.getElementById('rel-bars').innerHTML = top.map(([k,v]) => {
+    const isFam = familyRels.includes(k);
+    const pct = isFam ? (v/familyMax*60).toFixed(1) : (v/restMax*100).toFixed(1);
+    return `<div class="rel-bar-row" onclick="filterByRel('${k}')" style="cursor:pointer">
       <div class="rel-bar-label">${labels[k]||k}</div>
-      <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${(v/maxV*100).toFixed(1)}%"></div></div>
+      <div class="rel-bar-track"><div class="rel-bar-fill" data-w="${pct}%"></div></div>
       <div class="rel-bar-num">${v}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   setTimeout(() => document.querySelectorAll('.rel-bar-fill').forEach(el => el.style.width = el.dataset.w), 250);
 
   _allContacts = persons.map(p => ({
