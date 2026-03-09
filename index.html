@@ -741,7 +741,12 @@ function renderContacts(persons) {
     aunt_of:'Teta', uncle_of:'Ujo', student_of:'Študent'
   };
 
-  const top = Object.entries(rels).sort((a,b)=>b[1]-a[1]).slice(0,14);
+  const familyRels = ['father_of','mother_of','brother_of','sister_of','grandfather_of','grandmother_of'];
+  const allEntries = Object.entries(rels);
+  // Rodina vždy na začiatok, potom ostatní podľa počtu
+  const family = allEntries.filter(([k]) => familyRels.includes(k)).sort((a,b) => familyRels.indexOf(a[0]) - familyRels.indexOf(b[0]));
+  const rest = allEntries.filter(([k]) => !familyRels.includes(k)).sort((a,b) => b[1]-a[1]);
+  const top = [...family, ...rest].slice(0, 20);
 
   document.getElementById('contacts-stats').innerHTML =
     `<div class="cs-cell click-item" onclick="filterByRel(null)" style="cursor:pointer">
