@@ -1073,12 +1073,12 @@ async function saveDetail() {
 let _allContacts = [];
 
 function deduplicatePersons(persons) {
-  // Explicitly skip known duplicate UIDs (weaker/older records)
+  // Skip WEAKER duplicates - tieto sú prázdnejšie záznamy, ktoré majú lepší pendant
   const SKIP_UIDS = new Set([
-    'd2feeb1b-a55d-4c33-89ce-439bfeba4018', // Adam Mezzey starší záznam
-    'b57c7cc2-a794-40e0-a279-8f94ba9ab131', // Ľuboš Bílek starší záznam
-    'd844fd20-44e1-4fd7-ae35-9e7157f83143', // Ján Mezzey starší záznam
-    '91eb0645-5768-49d8-8b82-edc27ab5702a', // Majka - duplicit Márie Bílkovej
+    'd2feeb1b-a55d-4c33-89ce-439bfeba4018', // Adam Mezzey - starší, bez emailu (lepší: 7d1c4734)
+    'b57c7cc2-a794-40e0-a279-8f94ba9ab131', // Ľuboš Bílek - starší, bez gender (lepší: 9537e699)
+    'd844fd20-44e1-4fd7-ae35-9e7157f83143', // Ján Mezzey - menej údajov score=4 (lepší: 9f154dc5 score=9)
+    '91eb0645-5768-49d8-8b82-edc27ab5702a', // "Majka" - duplicit Márie Bílkovej (lepší: 111b0555)
   ]);
 
   const seen = {};
@@ -1088,10 +1088,9 @@ function deduplicatePersons(persons) {
     const d = p.data || p;
     const uid = d.uid || '';
 
-    // Skip known duplicates
     if (SKIP_UIDS.has(uid)) return;
 
-    // Also deduplicate by normalized name + birth_date as safety net
+    // Safety net: dedup by name + birth_date
     const firstName = (d.first_name || '').trim().toLowerCase();
     const lastName = (d.last_name || '').trim().toLowerCase();
     const nameField = (d.name || '').trim().toLowerCase();
@@ -1099,16 +1098,12 @@ function deduplicatePersons(persons) {
     const birth = d.birth_date || '';
     const key = fullName + '|' + birth;
 
-    if (key === '|' || !fullName) {
-      result.push(p);
-      return;
-    }
+    if (!fullName || key === '|') { result.push(p); return; }
 
     if (!seen[key]) {
       seen[key] = p;
       result.push(p);
     } else {
-      // Keep the one with more filled fields
       const score = x => Object.values(x.data || x).filter(v => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
       if (score(p) > score(seen[key])) {
         const idx = result.indexOf(seen[key]);
